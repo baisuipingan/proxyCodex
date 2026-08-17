@@ -1,3 +1,5 @@
 .DS_Store
 /codex-proxy
 /codex-proxy-linux-amd64
+
+.idea/
