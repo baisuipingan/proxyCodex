@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Codex下载</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f6f8fa;color:#1f2328;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:40px 20px}
+h1{margin:0 0 6px;font-size:28px}
+.sub{color:#57606a;margin:0 0 24px}
+.ad{display:flex;align-items:center;gap:12px;border:1px solid #f5d0a9;border-radius:8px;background:linear-gradient(135deg,#fff7ed,#fef2f2);padding:14px 16px;text-decoration:none;color:#1f2328;margin-bottom:24px}
+.ad:hover{border-color:#ea580c}
+.ad-badge{flex:none;background:#ea580c;color:#fff;font-size:12px;border-radius:999px;padding:3px 10px}
+.ad-body{flex:1;font-size:14px;line-height:1.5}
+.ad-arrow{flex:none;color:#ea580c;font-weight:600}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:20px}
+.card{border:1px solid #d0d7de;border-radius:8px;background:#fff;padding:16px;cursor:pointer;text-align:left;font:inherit}
+.card:hover{border-color:#0969da}
+.card.selected{border-color:#0969da;box-shadow:0 0 0 3px rgba(9,105,218,.18)}
+.card strong{display:block;font-size:16px}
+.card span{display:block;margin-top:4px;color:#57606a;font-size:13px}
+.panel{border:1px solid #d0d7de;border-radius:8px;background:#fff;padding:18px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.panel .meta{color:#57606a;font-size:13px;margin-top:4px}
+.btn{display:inline-block;background:#0969da;color:#fff;border-radius:6px;padding:10px 18px;text-decoration:none;font-weight:600}
+.footer{color:#57606a;font-size:13px;margin-top:24px}
+.section{margin-top:44px;border-top:1px solid #d0d7de;padding-top:32px}
+.section h2{margin:0 0 6px;font-size:22px}
+.section .sub{margin-bottom:20px}
+@media (max-width:480px){h1{font-size:24px}.btn{width:100%;text-align:center}}
+</style>
+</head>
+<body>
+<main>
+<h1>Codex下载</h1>
+<p class="sub">所有安装包都通过本站服务器代理下载。</p>
+<a class="ad" href="https://apac.milorouter.com" target="_blank" rel="noopener noreferrer">
+<span class="ad-badge">推荐</span>
+<span class="ad-body"><strong>MiloRouter 中转站</strong> · AI API 中转服务，稳定高速，点击了解</span>
+<span class="ad-arrow">→</span>
+</a>
+
+<div class="cards" id="cards"></div>
+<div class="panel">
+<div>
+<div>已选择：<strong id="codexSelectedName"></strong></div>
+<div class="meta" id="codexSelectedDetail"></div>
+</div>
+<a id="codexDownloadBtn" class="btn" href="#">下载</a>
+</div>
+
+<section class="section">
+<h2>CC Switch 客户端</h2>
+<p class="sub" id="ccVersion">正在读取最新版本…</p>
+<div class="cards" id="ccCards"></div>
+<div class="panel">
+<div>
+<div>已选择：<strong id="ccSelectedName"></strong></div>
+<div class="meta" id="ccSelectedDetail"></div>
+</div>
+<a id="ccDownloadBtn" class="btn" href="#">下载</a>
+</div>
+</section>
+</main>
+<script>
+const CODEX_ITEMS = [
+  {id:'mac-arm64', os:'macOS', arch:'Apple Silicon', name:'Codex-mac-arm64.dmg', detail:'官方 DMG，约 640 MB'},
+  {id:'mac-x64', os:'macOS', arch:'Intel', name:'Codex-mac-x64.dmg', detail:'官方 DMG，约 590 MB'},
+  {id:'win-x64', os:'Windows', arch:'x86_64', name:'Codex-Windows-x64.msix', detail:'官方 MSIX，本站代理下载'},
+  {id:'win-arm64', os:'Windows', arch:'ARM64', name:'Codex-Windows-arm64.msix', detail:'官方 MSIX，本站代理下载'}
+];
+
+const CCSWITCH_DEFAULTS = [
+  {id:'ccswitch-mac', os:'macOS', arch:'Apple Silicon / Intel', name:'CC Switch 最新版', detail:'macOS 最新版，本站代理下载'},
+  {id:'ccswitch-win-x64', os:'Windows', arch:'x86_64', name:'CC Switch 最新版', detail:'Windows x64 最新版，本站代理下载'},
+  {id:'ccswitch-win-arm64', os:'Windows', arch:'ARM64', name:'CC Switch 最新版', detail:'Windows ARM64 最新版，本站代理下载'},
+  {id:'ccswitch-linux-x64', os:'Linux', arch:'x86_64', name:'CC Switch 最新版', detail:'Linux x86_64 最新版，本站代理下载'},
+  {id:'ccswitch-linux-arm64', os:'Linux', arch:'ARM64', name:'CC Switch 最新版', detail:'Linux ARM64 最新版，本站代理下载'}
+];
+
+let codexSelected = CODEX_ITEMS[0].id;
+let ccSelected = CCSWITCH_DEFAULTS[0].id;
+let ccItems = CCSWITCH_DEFAULTS.slice();
+
+async function detectLocal() {
+  let platform = '';
+  let architecture = '';
+  if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+    try {
+      const values = await navigator.userAgentData.getHighEntropyValues(['platform', 'architecture']);
+      platform = values.platform || '';
+      architecture = (values.architecture || '').toLowerCase();
+    } catch (e) {}
+  }
+  if (!platform) return;
+
+  const arm = architecture.includes('arm');
+  if (platform.includes('mac')) {
+    codexSelected = arm ? 'mac-arm64' : 'mac-x64';
+    ccSelected = 'ccswitch-mac';
+  } else if (platform.includes('win')) {
+    codexSelected = arm ? 'win-arm64' : 'win-x64';
+    ccSelected = arm ? 'ccswitch-win-arm64' : 'ccswitch-win-x64';
+  } else if (platform.includes('linux')) {
+    ccSelected = arm ? 'ccswitch-linux-arm64' : 'ccswitch-linux-x64';
+  }
+  renderCodex();
+  renderCC();
+}
+
+function renderCodex() {
+  const item = CODEX_ITEMS.find(x => x.id === codexSelected);
+  document.getElementById('codexSelectedName').textContent = item.os + ' ' + item.arch;
+  document.getElementById('codexSelectedDetail').textContent = item.name + ' · ' + item.detail;
+  const btn = document.getElementById('codexDownloadBtn');
+  btn.href = '#';
+  btn.removeAttribute('download');
+  btn.onclick = (e) => {
+    e.preventDefault();
+    startDownload(item.id, btn);
+  };
+  document.querySelectorAll('#cards .card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.id === codexSelected);
+  });
+}
+
+async function startDownload(platform, btn) {
+  if (btn.dataset.loading === '1') return;
+  btn.dataset.loading = '1';
+  btn.textContent = '正在获取链接…';
+  try {
+    const resp = await fetch('/api/ticket?platform=' + encodeURIComponent(platform));
+    if (!resp.ok) throw new Error('ticket request failed');
+    const data = await resp.json();
+    window.location.href = data.url;
+  } catch (e) {
+    alert('下载链接获取失败，请稍后重试');
+  } finally {
+    delete btn.dataset.loading;
+    btn.textContent = '下载';
+  }
+}
+
+function renderCC() {
+  const item = ccItems.find(x => x.id === ccSelected) || ccItems[0];
+  document.getElementById('ccSelectedName').textContent = item.os + ' ' + item.arch;
+  document.getElementById('ccSelectedDetail').textContent = item.name + ' · ' + item.detail;
+  const btn = document.getElementById('ccDownloadBtn');
+  btn.href = '#';
+  btn.removeAttribute('download');
+  btn.onclick = (e) => {
+    e.preventDefault();
+    startDownload(item.id, btn);
+  };
+  document.querySelectorAll('#ccCards .card').forEach(card => {
+    card.classList.toggle('selected', card.dataset.id === ccSelected);
+  });
+}
+
+function buildCodexCards() {
+  const cards = document.getElementById('cards');
+  CODEX_ITEMS.forEach(item => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card';
+    card.dataset.id = item.id;
+    card.innerHTML = '<strong>' + item.os + '</strong><span>' + item.arch + '</span>';
+    card.addEventListener('click', () => {
+      codexSelected = item.id;
+      renderCodex();
+    });
+    cards.appendChild(card);
+  });
+}
+
+function buildCCCards() {
+  const cards = document.getElementById('ccCards');
+  cards.textContent = '';
+  ccItems.forEach(item => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card';
+    card.dataset.id = item.id;
+    card.innerHTML = '<strong>' + item.os + '</strong><span>' + item.arch + '</span>';
+    card.addEventListener('click', () => {
+      ccSelected = item.id;
+      renderCC();
+    });
+    cards.appendChild(card);
+  });
+}
+
+async function loadCCSwitch() {
+  try {
+    const resp = await fetch('/api/ccswitch');
+    const data = await resp.json();
+    if (!data.items || !data.items.length) return;
+    ccItems = data.items.map(remote => {
+      const def = CCSWITCH_DEFAULTS.find(x => x.id === remote.id) || {os:'', arch:''};
+      return {id: remote.id, os: def.os, arch: def.arch, name: remote.name, detail: remote.detail};
+    });
+    document.getElementById('ccVersion').textContent = '版本：' + data.version;
+    buildCCCards();
+    renderCC();
+  } catch (e) {
+    document.getElementById('ccVersion').textContent = '版本：最新';
+  }
+}
+
+buildCodexCards();
+buildCCCards();
+renderCodex();
+renderCC();
+detectLocal();
+loadCCSwitch();
+</script>
+</body>
+</html>

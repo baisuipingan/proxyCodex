@@ -1,0 +1,6 @@
+.git
+.gitignore
+codex-proxy
+codex-proxy-linux-amd64
+output
+*.md
