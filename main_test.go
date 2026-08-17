@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -161,7 +163,7 @@ func TestCCSwitchAPIAndDownload(t *testing.T) {
 		apiURL: github.URL,
 		ttl:    time.Hour,
 	}
-	mux := newMuxWithResolver(http.DefaultClient, discardLogger(), map[string]downloadTarget{}, resolver, newTicketSigner())
+	mux := newMuxWithResolver(http.DefaultClient, discardLogger(), map[string]downloadTarget{}, resolver, newTicketSigner(), nil)
 
 	apiReq := httptest.NewRequest(http.MethodGet, "/api/ccswitch", nil)
 	apiRR := httptest.NewRecorder()
@@ -231,5 +233,37 @@ func TestTicketVerification(t *testing.T) {
 	}
 	if signer.verify("mac-arm64", expires, "bad-token") {
 		t.Error("tampered token was accepted")
+	}
+}
+
+func TestMirrorServesLocalFile(t *testing.T) {
+	dir := t.TempDir()
+	filename := "Codex-mac-arm64.dmg"
+	if err := os.WriteFile(filepath.Join(dir, filename), []byte("local"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	targets := map[string]downloadTarget{
+		"mac-arm64": {Filename: filename, Upstream: "http://127.0.0.1:1/unused"},
+	}
+	m := newMirror(dir, http.DefaultClient, discardLogger(), nil, targets)
+	m.mu.Lock()
+	m.items["mac-arm64"] = mirrorItem{Filename: filename, Size: 5, Updated: time.Now()}
+	m.mu.Unlock()
+
+	mux := newMuxWithResolver(http.DefaultClient, discardLogger(), targets, nil, newTicketSigner(), m)
+
+	req := httptest.NewRequest(http.MethodGet, ticketURL(t, mux, "mac-arm64"), nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	if rr.Body.String() != "local" {
+		t.Fatalf("body = %q, want %q", rr.Body.String(), "local")
+	}
+	if got := rr.Header().Get("Content-Disposition"); !strings.Contains(got, filename) {
+		t.Fatalf("content-disposition = %q, want filename %s", got, filename)
 	}
 }

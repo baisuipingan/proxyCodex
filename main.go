@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -85,6 +86,176 @@ func (s *ticketSigner) verify(platform string, expires int64, token string) bool
 	return hmac.Equal([]byte(expected), []byte(token))
 }
 
+type mirrorItem struct {
+	Filename string    `json:"filename"`
+	Size     int64     `json:"size"`
+	Updated  time.Time `json:"updated"`
+}
+
+type mirror struct {
+	dir      string
+	client   *http.Client
+	logger   *slog.Logger
+	resolver *ccswitchResolver
+	targets  map[string]downloadTarget
+	syncHour int
+
+	mu    sync.RWMutex
+	items map[string]mirrorItem
+}
+
+func newMirror(dir string, client *http.Client, logger *slog.Logger, resolver *ccswitchResolver, targets map[string]downloadTarget) *mirror {
+	return &mirror{
+		dir:      dir,
+		client:   client,
+		logger:   logger,
+		resolver: resolver,
+		targets:  targets,
+		syncHour: envInt("SYNC_HOUR", 3),
+		items:    map[string]mirrorItem{},
+	}
+}
+
+func (m *mirror) enabled() bool {
+	return m != nil && m.dir != ""
+}
+
+func (m *mirror) run(ctx context.Context) {
+	if !m.enabled() {
+		return
+	}
+	if err := os.MkdirAll(m.dir, 0o755); err != nil {
+		m.logger.Error("mirror dir create failed", "dir", m.dir, "error", err)
+	}
+	m.load()
+	m.sync(ctx)
+
+	for {
+		next := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), m.syncHour, 0, 0, 0, time.Local)
+		if !next.After(time.Now()) {
+			next = next.Add(24 * time.Hour)
+		}
+		timer := time.NewTimer(time.Until(next))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+			m.sync(ctx)
+		}
+	}
+}
+
+func (m *mirror) sync(ctx context.Context) {
+	logger := m.logger
+	for platform, target := range m.targets {
+		if err := m.downloadFile(ctx, platform, target.Filename, target.Upstream); err != nil {
+			logger.Error("mirror sync failed", "platform", platform, "error", err)
+		}
+	}
+	if m.resolver == nil {
+		return
+	}
+	release, err := m.resolver.resolve(ctx)
+	if err != nil {
+		logger.Error("mirror resolve cc-switch failed", "error", err)
+		return
+	}
+	for platform, target := range release.Items {
+		if err := m.downloadFile(ctx, platform, target.Filename, target.Upstream); err != nil {
+			logger.Error("mirror sync failed", "platform", platform, "error", err)
+		}
+	}
+	m.save()
+}
+
+func (m *mirror) downloadFile(ctx context.Context, platform, filename, upstream string) error {
+	if err := os.MkdirAll(m.dir, 0o755); err != nil {
+		return err
+	}
+	tmp := filepath.Join(m.dir, "."+filename+".tmp")
+	final := filepath.Join(m.dir, filename)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, upstream, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "CodexDownloadProxy/1.0")
+
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusPartialContent {
+		return fmt.Errorf("upstream returned %s", resp.Status)
+	}
+
+	out, err := os.Create(tmp)
+	if err != nil {
+		return err
+	}
+	written, copyErr := io.Copy(out, resp.Body)
+	closeErr := out.Close()
+	if copyErr != nil {
+		_ = os.Remove(tmp)
+		return copyErr
+	}
+	if closeErr != nil {
+		_ = os.Remove(tmp)
+		return closeErr
+	}
+
+	m.mu.RLock()
+	prev := m.items[platform]
+	m.mu.RUnlock()
+	if prev.Filename != "" && prev.Filename != filename {
+		_ = os.Remove(filepath.Join(m.dir, prev.Filename))
+	}
+
+	if err := os.Rename(tmp, final); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+
+	m.mu.Lock()
+	m.items[platform] = mirrorItem{Filename: filename, Size: written, Updated: time.Now()}
+	m.mu.Unlock()
+	m.logger.Info("mirror updated", "platform", platform, "filename", filename, "size", written)
+	return nil
+}
+
+func (m *mirror) item(platform string) (mirrorItem, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	item, ok := m.items[platform]
+	return item, ok
+}
+
+func (m *mirror) load() {
+	data, err := os.ReadFile(filepath.Join(m.dir, "mirror.json"))
+	if err != nil {
+		return
+	}
+	var items map[string]mirrorItem
+	if json.Unmarshal(data, &items) != nil {
+		return
+	}
+	m.mu.Lock()
+	m.items = items
+	m.mu.Unlock()
+}
+
+func (m *mirror) save() {
+	m.mu.RLock()
+	data, err := json.Marshal(m.items)
+	m.mu.RUnlock()
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(filepath.Join(m.dir, "mirror.json"), data, 0o644)
+}
+
 func loadTargets() map[string]downloadTarget {
 	return map[string]downloadTarget{
 		"mac-arm64": {
@@ -124,15 +295,22 @@ func main() {
 		},
 	}
 
+	targets := loadTargets()
+	resolver := newCCSwitchResolver(client, logger)
+	signer := newTicketSigner()
+	m := newMirror(envOr("MIRROR_DIR", ""), client, logger, resolver, targets)
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newMux(client, logger, loadTargets()),
+		Handler:           newMuxWithResolver(client, logger, targets, resolver, signer, m),
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go m.run(ctx)
 
 	go func() {
 		logger.Info("codex download proxy listening", "addr", addr)
@@ -153,10 +331,11 @@ func main() {
 }
 
 func newMux(client *http.Client, logger *slog.Logger, targets map[string]downloadTarget) http.Handler {
-	return newMuxWithResolver(client, logger, targets, newCCSwitchResolver(client, logger), newTicketSigner())
+	resolver := newCCSwitchResolver(client, logger)
+	return newMuxWithResolver(client, logger, targets, resolver, newTicketSigner(), newMirror("", client, logger, resolver, targets))
 }
 
-func newMuxWithResolver(client *http.Client, logger *slog.Logger, targets map[string]downloadTarget, resolver *ccswitchResolver, signer *ticketSigner) http.Handler {
+func newMuxWithResolver(client *http.Client, logger *slog.Logger, targets map[string]downloadTarget, resolver *ccswitchResolver, signer *ticketSigner, m *mirror) http.Handler {
 	static, err := fs.Sub(embeddedStatic, "static")
 	if err != nil {
 		panic(err)
@@ -170,11 +349,12 @@ func newMuxWithResolver(client *http.Client, logger *slog.Logger, targets map[st
 	})
 	mux.HandleFunc("/api/ccswitch", ccswitchAPIHandler(resolver, logger))
 	mux.HandleFunc("/api/ticket", ticketHandler(targets, resolver, signer))
-	mux.HandleFunc("/download/{platform}", downloadHandler(client, logger, targets, resolver, signer))
+	mux.HandleFunc("/api/mirror", mirrorAPIHandler(m))
+	mux.HandleFunc("/download/{platform}", downloadHandler(client, logger, targets, resolver, signer, m))
 	return mux
 }
 
-func downloadHandler(client *http.Client, logger *slog.Logger, targets map[string]downloadTarget, resolver *ccswitchResolver, signer *ticketSigner) http.HandlerFunc {
+func downloadHandler(client *http.Client, logger *slog.Logger, targets map[string]downloadTarget, resolver *ccswitchResolver, signer *ticketSigner, m *mirror) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
@@ -197,6 +377,17 @@ func downloadHandler(client *http.Client, logger *slog.Logger, targets map[strin
 			return
 		}
 
+		if m != nil && m.enabled() {
+			if item, ok := m.item(platform); ok {
+				path := filepath.Join(m.dir, item.Filename)
+				if fi, statErr := os.Stat(path); statErr == nil && fi.Mode().IsRegular() {
+					w.Header().Set("Content-Disposition", `attachment; filename="`+item.Filename+`"`)
+					http.ServeFile(w, r, path)
+					return
+				}
+			}
+		}
+
 		if target, ok := targets[platform]; ok {
 			streamDownload(w, r, target, client, logger)
 			return
@@ -214,6 +405,30 @@ func downloadHandler(client *http.Client, logger *slog.Logger, targets map[strin
 			return
 		}
 		streamDownload(w, r, target, client, logger)
+	}
+}
+
+func mirrorAPIHandler(m *mirror) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		type mirrorOut struct {
+			Platform string    `json:"platform"`
+			Filename string    `json:"filename"`
+			Size     int64     `json:"size"`
+			Updated  time.Time `json:"updated"`
+		}
+		items := make([]mirrorOut, 0, 16)
+		if m != nil {
+			m.mu.RLock()
+			for platform, item := range m.items {
+				items = append(items, mirrorOut{Platform: platform, Filename: item.Filename, Size: item.Size, Updated: item.Updated})
+			}
+			m.mu.RUnlock()
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"enabled": m != nil && m.enabled(),
+			"items":   items,
+		})
 	}
 }
 
@@ -286,6 +501,14 @@ func envOr(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func envInt(key string, fallback int) int {
+	value, err := strconv.Atoi(strings.TrimSpace(os.Getenv(key)))
+	if err != nil {
+		return fallback
+	}
+	return value
 }
 
 func newCCSwitchResolver(client *http.Client, logger *slog.Logger) *ccswitchResolver {

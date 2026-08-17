@@ -32,6 +32,7 @@
 - ✅ CC Switch 客户端下载：macOS、Windows、Linux
 - ✅ 服务器端代拉，用户不直连官方源 / GitHub / 微软商店
 - ✅ 每次下载自动跟随最新版（Codex 走官方 `latest` 地址，CC Switch 走 GitHub 最新 Release）
+- ✅ **每日定时镜像**：每天凌晨 3 点把最新安装包预下载到本地磁盘，用户下载直接走本地文件（支持断点续传）
 - ✅ HMAC 签名短时下载票据（15 分钟），裸链接一律 `403`，防盗链
 - ✅ 无磁盘缓存，纯流式转发；多架构 Docker 镜像（amd64 / arm64）
 
@@ -68,6 +69,20 @@ docker run -d --restart unless-stopped -p 127.0.0.1:8080:8080 \
   minghongcai/codex-download-proxy:latest
 ```
 
+### 开启每日定时镜像（推荐）
+
+设置 `MIRROR_DIR` 后，服务启动时会先同步一次，之后每天凌晨 `SYNC_HOUR`（默认 3 点）自动把最新安装包下载到挂载目录，用户下载时直接从本地磁盘出文件：
+
+```bash
+docker run -d --restart unless-stopped -p 127.0.0.1:8080:8080 \
+  -e DOWNLOAD_SIGN_KEY="$(openssl rand -hex 32)" \
+  -e MIRROR_DIR=/data/mirror \
+  -v /opt/codex-proxy/mirror:/data/mirror \
+  minghongcai/codex-download-proxy:latest
+```
+
+> 镜像目录务必用 volume 挂出来，否则容器重建后文件会丢失。
+
 ## 环境变量
 
 | 变量 | 默认值 | 说明 |
@@ -79,6 +94,8 @@ docker run -d --restart unless-stopped -p 127.0.0.1:8080:8080 \
 | `CODEX_WIN_X64_URL` | codex-app-mirror CDN | Windows x64 上游（微软商店无稳定直链） |
 | `CODEX_WIN_ARM64_URL` | codex-app-mirror CDN | Windows ARM64 上游 |
 | `CCSWITCH_API_URL` | GitHub cc-switch 最新 Release API | CC Switch 版本解析地址 |
+| `MIRROR_DIR` | 空（关闭） | 每日镜像目录，设置后启用定时预下载 |
+| `SYNC_HOUR` | `3` | 每日同步的小时（服务器本地时区） |
 
 ## 主要路由
 
@@ -87,6 +104,7 @@ docker run -d --restart unless-stopped -p 127.0.0.1:8080:8080 \
 | `/` | 内嵌下载页（Codex + CC Switch） |
 | `/api/ticket?platform=<id>` | 获取 15 分钟有效的签名下载链接 |
 | `/api/ccswitch` | CC Switch 最新版本与资产信息 |
+| `/api/mirror` | 本地镜像目录当前文件状态 |
 | `/download/{platform}?expires=&token=` | 签名后的下载代理端点 |
 | `/healthz` | 健康检查 |
 
@@ -110,5 +128,5 @@ docker buildx build \
 ## 安全说明
 
 - 下载链接为 HMAC 签名票据，禁止直接分享裸链接（15 分钟过期、防篡改）
-- 无磁盘缓存，所有流量经服务器转发，带宽消耗与下载量成正比，建议在反代层做按 IP 限流
+- 默认无磁盘缓存，所有流量经服务器实时转发；开启 `MIRROR_DIR` 后改为每日预下载到本地磁盘，用户下载走本地文件，带宽消耗大幅降低，建议在反代层做按 IP 限流
 - 签名密钥 `DOWNLOAD_SIGN_KEY` 请妥善保管，泄露后他人可自行签发下载链接

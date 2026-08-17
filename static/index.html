@@ -208,12 +208,32 @@ async function loadCCSwitch() {
   }
 }
 
+async function loadMirror() {
+  try {
+    const resp = await fetch('/api/mirror');
+    const data = await resp.json();
+    if (!data.enabled || !data.items) return;
+    const byId = {};
+    data.items.forEach(i => { byId[i.platform] = i; });
+    const updated = ccItems.map(item => {
+      const m = byId[item.id];
+      if (m) return Object.assign({}, item, {name: m.filename});
+      return item;
+    });
+    if (updated.length) ccItems = updated;
+    document.getElementById('ccVersion').textContent = '版本：每日更新';
+    buildCCCards();
+    renderCC();
+  } catch (e) {}
+}
+
 buildCodexCards();
 buildCCCards();
 renderCodex();
 renderCC();
 detectLocal();
 loadCCSwitch();
+loadMirror();
 </script>
 </body>
 </html>
