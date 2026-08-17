@@ -18,7 +18,7 @@
 
 ### [MiloRouter 中转站](https://apac.milorouter.com)
 
-**AI API 中转服务 · 稳定 · 高速 · 国内友好**
+**AI Token 中转服务 · 稳定 · 高速**
 
 如果本项目帮到了你，欢迎前往 [apac.milorouter.com](https://apac.milorouter.com) 了解支持 🙏
 
