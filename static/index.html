@@ -34,7 +34,39 @@ h1{margin:0 0 6px;font-size:28px}
 .section{margin-top:44px;border-top:1px solid #d0d7de;padding-top:32px}
 .section h2{margin:0 0 6px;font-size:22px}
 .section .sub{margin-bottom:20px}
-@media (max-width:480px){h1{font-size:24px}.btn{width:100%;text-align:center}}
+.tutorial{margin-top:52px}
+.tutorial-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+.tutorial-heading .sub{max-width:620px;margin-bottom:0}
+.tutorial-eyebrow{margin:0 0 6px;color:#0969da;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.tutorial-count{flex:none;border:1px solid #bfdbfe;border-radius:999px;color:#1d4ed8;background:#eff6ff;padding:5px 10px;font-size:12px;font-weight:600}
+.tutorial-note{display:flex;gap:10px;align-items:flex-start;border-left:3px solid #0969da;background:#f0f6ff;padding:12px 14px;margin-bottom:18px;font-size:14px;line-height:1.6}
+.tutorial-note strong{flex:none;color:#1d4ed8}
+.tutorial-steps{display:grid;gap:16px}
+.tutorial-step{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:20px;align-items:start;border:1px solid #d0d7de;border-radius:8px;background:#fff;padding:20px}
+.tutorial-step-kicker{margin:0 0 6px;color:#0969da;font-size:12px;font-weight:700;letter-spacing:.04em}
+.tutorial-step h3{margin:0 0 8px;font-size:18px}
+.tutorial-copy p{line-height:1.65}
+.tutorial-copy>p:not(.tutorial-step-kicker){margin:0 0 12px;color:#57606a;font-size:14px}
+.tutorial-copy ol,.tutorial-copy ul{margin:0;padding-left:20px;color:#1f2328;font-size:14px;line-height:1.8}
+.tutorial-copy li+li{margin-top:2px}
+.tutorial-tip{border-left:3px solid #d97706;background:#fffbeb;padding:9px 11px;margin-top:14px!important;color:#92400e!important;font-size:13px!important;line-height:1.55!important}
+.tutorial-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tutorial-gallery figure{margin:0}
+.tutorial-gallery img{display:block;width:100%;height:auto;max-height:300px;object-fit:contain;border:1px solid #d8dee4;border-radius:6px;background:#f6f8fa;cursor:zoom-in}
+.tutorial-gallery figcaption{margin-top:5px;color:#57606a;font-size:12px;line-height:1.4}
+.tutorial-gallery--single{grid-template-columns:minmax(0,1fr)}
+.tutorial-link{color:#0969da;text-decoration:none;font-weight:600}
+.tutorial-link:hover{text-decoration:underline}
+.tutorial-footnote{margin:16px 0 0;color:#57606a;font-size:13px;line-height:1.6}
+.lightbox{width:auto;max-width:96vw;max-height:94vh;border:0;padding:0;background:transparent;overflow:visible}
+.lightbox::backdrop{background:rgba(15,23,42,.78)}
+.lightbox-content{position:relative;display:grid;justify-items:center;gap:8px}
+.lightbox img{display:block;max-width:92vw;max-height:84vh;width:auto;height:auto;border:1px solid #d8dee4;border-radius:8px;background:#fff;box-shadow:0 18px 60px rgba(0,0,0,.35)}
+.lightbox-caption{max-width:90vw;margin:0;color:#fff;font-size:13px;line-height:1.4;text-align:center}
+.lightbox-close{position:absolute;top:-16px;right:-16px;width:36px;height:36px;border:1px solid #d0d7de;border-radius:50%;background:#fff;color:#1f2328;font:600 24px/1 system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.lightbox-close:hover{background:#f6f8fa}
+@media (max-width:640px){.tutorial-heading{display:block}.tutorial-count{display:inline-block;margin-top:12px}.tutorial-step{grid-template-columns:1fr;padding:16px}.tutorial-gallery{grid-template-columns:1fr 1fr}.tutorial-gallery img{max-height:260px}}
+@media (max-width:480px){h1{font-size:24px}.btn{width:100%;text-align:center}.tutorial-gallery{grid-template-columns:1fr}.tutorial-note{display:block}.tutorial-note strong{display:block;margin-bottom:2px}.lightbox-close{top:8px;right:8px}}
 </style>
 </head>
 <body>
@@ -73,6 +105,159 @@ h1{margin:0 0 6px;font-size:28px}
 <span class="ad-arrow">→</span>
 </a>
 </section>
+
+<section class="section tutorial" id="tutorial">
+<div class="tutorial-heading">
+<div>
+<p class="tutorial-eyebrow">使用教程</p>
+<h2>Codex 连接中转站详细教程</h2>
+<p class="sub">下载客户端后，按下面的流程接入 MiloRouter。CC Switch 会负责导入配置，不需要手动编辑 Codex 配置文件。</p>
+</div>
+<span class="tutorial-count">7 个步骤</span>
+</div>
+
+<div class="tutorial-note"><strong>接入要点</strong><span>先在 MiloRouter 创建 API Key，并在创建过程中选择模型；然后从密钥页面导入 CC Switch，启动 Codex 后即可测试。</span></div>
+
+<div class="tutorial-steps">
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">01 · 注册账号</p>
+<h3>注册并登录 MiloRouter</h3>
+<p>打开 <a class="tutorial-link" href="https://apac.milorouter.com" target="_blank" rel="noopener noreferrer">MiloRouter 中转站</a>，使用常用邮箱注册并完成验证。</p>
+<ol>
+<li>填写邮箱和密码，密码至少 6 位。</li>
+<li>获取邮箱验证码并完成注册。</li>
+<li>登录后进入仪表盘，确认账户状态。</li>
+</ol>
+<p class="tutorial-tip">不要向他人提供邮箱验证码或登录密码。</p>
+</div>
+<div class="tutorial-gallery">
+<figure><img src="tutorial/注册界面.jpg" alt="MiloRouter 注册界面"><figcaption>填写注册信息</figcaption></figure>
+<figure><img src="tutorial/登录后界面.jpg" alt="MiloRouter 登录后界面"><figcaption>登录后进入控制台</figcaption></figure>
+</div>
+</article>
+
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">02 · 购买额度</p>
+<h3>购买并兑换额度</h3>
+<p>从控制台进入“充值小铺”，购买额度后把兑换码兑换到账户余额。</p>
+<ol>
+<li>选择需要的美元额度并完成支付。</li>
+<li>复制购买成功页面显示的兑换码。</li>
+<li>回到控制台的“兑换”页面提交兑换码。</li>
+<li>刷新仪表盘，确认余额已经增加。</li>
+</ol>
+<p class="tutorial-tip">兑换码区分大小写，每个兑换码只能使用一次；不要公开兑换码或订单信息。</p>
+</div>
+<div class="tutorial-gallery">
+<figure><img src="tutorial/充值界面.jpg" alt="MiloRouter 充值界面"><figcaption>在充值小铺选择额度</figcaption></figure>
+<figure><img src="tutorial/购买成功界面.jpg" alt="MiloRouter 购买成功界面"><figcaption>保存购买后的兑换码</figcaption></figure>
+</div>
+</article>
+
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">03 · 创建密钥</p>
+<h3>创建 API Key 并选择模型</h3>
+<p>进入“API 密钥”页面创建一个专用密钥。模型在创建密钥的流程中直接选择，不需要另外配置模型广场。</p>
+<ol>
+<li>点击“创建密钥”，填写用途名称，例如 <code>codex-laptop</code>。</li>
+<li>选择要使用的模型或对应分组。</li>
+<li>按需设置额度、速率、IP 和有效期限制。</li>
+<li>保存后立即复制 API Key，并妥善保管。</li>
+</ol>
+<p class="tutorial-tip">不要把完整 API Key 发到聊天、截图或公开仓库；建议为不同设备分别创建密钥。</p>
+</div>
+<div class="tutorial-gallery tutorial-gallery--single">
+<figure><img src="tutorial/创建秘钥.jpg" alt="MiloRouter 创建 API 密钥界面"><figcaption>创建密钥时选择模型并设置限制</figcaption></figure>
+</div>
+</article>
+
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">04 · 导入 CC Switch</p>
+<h3>从密钥页面导入配置</h3>
+<p>在刚创建的密钥操作区点击“导入到 CCS”，允许浏览器打开 CC Switch。</p>
+<ol>
+<li>回到 API 密钥列表，找到目标密钥。</li>
+<li>点击“导入到 CCS”，在浏览器提示中允许打开应用。</li>
+<li>CC Switch 打开后，确认 MiloRouter 供应商已经出现在 Codex 配置区域。</li>
+</ol>
+<p class="tutorial-tip">如果提示 CC Switch 未安装或协议未注册，请先安装可信版本，再重新点击导入。</p>
+</div>
+<div class="tutorial-gallery">
+<figure><img src="tutorial/中转站导入CC Switch.png" alt="MiloRouter 导入 CC Switch 入口"><figcaption>点击导入到 CCS</figcaption></figure>
+<figure><img src="tutorial/CC Switch界面.png" alt="CC Switch 主界面"><figcaption>CC Switch 配置界面</figcaption></figure>
+</div>
+</article>
+
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">05 · 启动并测试</p>
+<h3>在 CC Switch 中确认配置后启动 Codex</h3>
+<p>导入成功后，在 CC Switch 中确认供应商和模型，保存并启用配置，然后直接启动 Codex。</p>
+<ol>
+<li>确认 MiloRouter 地址、密钥和模型已经填入。</li>
+<li>确认配置已保存并处于启用状态。</li>
+<li>启动 Codex，新建 task，发送一条简短请求。</li>
+<li>收到回复后即可开始正常使用。</li>
+</ol>
+<p class="tutorial-tip">不需要手动修改 <code>config.toml</code> 或 <code>auth.json</code>；CC Switch 导入完成后直接启动 Codex 即可。</p>
+</div>
+<div class="tutorial-gallery">
+<figure><img src="tutorial/CC Switch模型配置.png" alt="CC Switch 模型配置界面"><figcaption>确认供应商配置</figcaption></figure>
+<figure><img src="tutorial/CC Switch模型选择.png" alt="CC Switch 模型选择界面"><figcaption>确认启用的模型</figcaption></figure>
+<figure><img src="tutorial/发送请求.png" alt="Codex 发送请求界面"><figcaption>发送一条简短请求</figcaption></figure>
+</div>
+</article>
+
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">06 · 查看记录</p>
+<h3>在使用记录确认调用</h3>
+<p>请求成功后回到 MiloRouter 控制台，打开“使用记录”，确认这次调用已经被记录。</p>
+<ul>
+<li>模型和请求是否对应预期配置。</li>
+<li>本次调用使用的 Token 数量。</li>
+<li>实际扣费、响应时间和请求状态。</li>
+</ul>
+</div>
+<div class="tutorial-gallery tutorial-gallery--single">
+<figure><img src="tutorial/使用记录.jpg" alt="MiloRouter 使用记录页面"><figcaption>在使用记录核对模型、Token 和费用</figcaption></figure>
+</div>
+</article>
+
+<article class="tutorial-step">
+<div class="tutorial-copy">
+<p class="tutorial-step-kicker">07 · 常见排查</p>
+<h3>无法使用时按顺序检查</h3>
+<p>遇到未授权、余额不足、模型不可用或连接超时，可以依次检查：</p>
+<ol>
+<li>账户余额是否充足。</li>
+<li>API Key 是否启用、过期，或触发额度、速率、IP 限制。</li>
+<li>CC Switch 中的模型是否与创建密钥时的选择一致。</li>
+<li>渠道状态和网络连接是否正常。</li>
+<li>完全退出 Codex 后重新打开，再创建新 task。</li>
+</ol>
+<p class="tutorial-tip">联系客服时不要发送完整密钥；提供密钥名称、模型 ID、系统、发生时间和遮盖后的日志即可。</p>
+</div>
+<div class="tutorial-gallery tutorial-gallery--single">
+<figure><img src="tutorial/渠道状态.jpg" alt="MiloRouter 渠道状态页面"><figcaption>检查渠道状态</figcaption></figure>
+</div>
+</article>
+</div>
+
+<p class="tutorial-footnote">模型、价格、额度商品和客户端版本可能调整，请以 MiloRouter 控制台和本页下载列表当前显示内容为准。</p>
+</section>
+
+<dialog class="lightbox" id="imageLightbox" aria-label="图片预览">
+<div class="lightbox-content">
+<button class="lightbox-close" id="lightboxClose" type="button" aria-label="关闭图片预览" title="关闭">×</button>
+<img id="lightboxImage" alt="">
+<p class="lightbox-caption" id="lightboxCaption"></p>
+</div>
+</dialog>
 </main>
 <script>
 const CODEX_ITEMS = [
@@ -245,6 +430,29 @@ renderCC();
 detectLocal();
 loadCCSwitch();
 loadMirror();
+
+const imageLightbox = document.getElementById('imageLightbox');
+const lightboxImage = document.getElementById('lightboxImage');
+const lightboxCaption = document.getElementById('lightboxCaption');
+const lightboxClose = document.getElementById('lightboxClose');
+
+function closeImageLightbox() {
+  if (imageLightbox.open) imageLightbox.close();
+}
+
+document.querySelectorAll('.tutorial-gallery img').forEach(image => {
+  image.addEventListener('click', () => {
+    lightboxImage.src = image.currentSrc || image.src;
+    lightboxImage.alt = image.alt;
+    lightboxCaption.textContent = image.closest('figure')?.querySelector('figcaption')?.textContent || image.alt;
+    imageLightbox.showModal();
+  });
+});
+
+lightboxClose.addEventListener('click', closeImageLightbox);
+imageLightbox.addEventListener('click', event => {
+  if (event.target === imageLightbox) closeImageLightbox();
+});
 </script>
 </body>
 </html>
